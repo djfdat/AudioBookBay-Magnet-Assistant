@@ -1,9 +1,9 @@
 const magnetPrefix = "magnet:?xt=urn:btih:"
 const magnetTrackerPrefix = "&tr="
 
-let title = document.querySelector(".postTitle")
-let magnetLink = document.querySelector("#magnetLink")
-let torrent_info = document.querySelector(".torrent_info")
+const title = document.querySelector(".postTitle")
+const magnetLink = document.querySelector("#magnetLink")
+const torrent_info = document.querySelector(".torrent_info")
 
 let trackers = []
 let hash = null
@@ -27,7 +27,9 @@ for (let i = 0; i < trackers.length; i++) {
 	link += "&tr=" + trackers[i]
 }
 
-var a = document.createElement("a")
+const a = document.createElement("a")
 a.href = link
 title.parentNode.insertBefore(a, title)
 a.innerHTML = "Magnet Download"
+
+magnetLink.href = link
