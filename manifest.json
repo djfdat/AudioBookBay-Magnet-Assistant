@@ -2,13 +2,13 @@
   "manifest_version": 2,
   "name": "AudioBookBay Magnet Assistant",
   "description": "Creates magnet links for AudioBookBay pages without logging in.",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "content_scripts": [
     {
       "matches": [
-        "*://*.audiobookbay.nl/abs/*",
-        "*://*.audiobookbay.is/abs/*",
-        "*://*.audiobookbay.se/abs/*"
+        "*://*.audiobookbay.nl/*",
+        "*://*.audiobookbay.is/*",
+        "*://*.audiobookbay.se/*"
       ],
       "js": [
         "abbma.js"
