@@ -27,7 +27,7 @@ for (let i = 0; i < torrent_info.children[0].children.length; i++) {
 let link = magnetPrefix + hash + "&dn=" + title.children[0].innerHTML
 
 if (trackers.length > 0) {
-	link += "&tr=" + trackers.join("&tr=")
+	link += `&tr=${trackers.join("&tr=")}`
 }
 
 // Create new magnet link at top of page
