@@ -6,9 +6,9 @@
   "content_scripts": [
     {
       "matches": [
-        "*://*.audiobookbay.nl/abs/*",
-        "*://*.audiobookbay.is/abs/*",
-        "*://*.audiobookbay.se/abs/*"
+        "*://*.audiobookbay.nl/*",
+        "*://*.audiobookbay.is/*",
+        "*://*.audiobookbay.se/*"
       ],
       "js": [
         "abbma.js"
