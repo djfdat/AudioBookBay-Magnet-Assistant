@@ -14,7 +14,7 @@ for (let i = 0; i < torrent_info.children[0].children.length; i++) {
 	const element = torrent_info.children[0].children[i];
 
 	rowName = element.children[0].innerHTML
-	if (rowName == "Tracker:") {
+	if (rowName == "Tracker:" || rowName == "Announce URL:") {
 		trackers.push(element.children[1].innerHTML)
 	}
 	else if (rowName == "Info Hash:") {
