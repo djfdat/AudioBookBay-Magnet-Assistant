@@ -70,7 +70,6 @@ buttonGroup.style.marginBottom = '5px'; // Space between the title and the butto
 // Create the "Magnet Download" link element (<a> tag).
 const a = document.createElement("a");
 a.href = link; // Set the constructed magnet link as the href.
-// title.parentNode.insertBefore(a, title) // Comment: Will be appended to buttonGroup later.
 a.innerHTML = linkSVG; // Set the SVG icon as the content.
 a.title = "Magnet Download"; // Tooltip text on hover.
 a.style.textDecoration = "none"; // Remove default link underline.
@@ -241,33 +240,56 @@ appendButton.addEventListener('click', async () => {
 		// existingText remains '', so the new link will be copied directly (not appended).
 	}
 
+	// Check if the magnet link already exists in the clipboard content.
+	let linkAlreadyExists = false;
+	if (existingText.trim() !== '') { // Ensure existingText has content before splitting.
+		const lines = existingText.split('\n');
+		// Trim each line from the clipboard and the link itself for robust comparison.
+		if (lines.map(line => line.trim()).includes(link.trim())) {
+			linkAlreadyExists = true;
+		}
+	}
+
+	// Handle the case where the link is already in the clipboard.
+	if (linkAlreadyExists) {
+		// Count existing links to report in the message.
+		const magnetLinks = existingText.split('\n').filter(line => line.startsWith('magnet:?xt=urn:btih:'));
+		const count = magnetLinks.length;
+		// Prepare message indicating the link is a duplicate.
+		const message = `Link already in clipboard. Clipboard contains ${count} magnet link${count === 1 ? '' : 's'}.`;
+		// Display the "already exists" message.
+		showFeedbackMessage(message);
+		return; // Exit early, do not modify clipboard or proceed further.
+	}
+
+	// If the link is not a duplicate, proceed to prepare new content and write to clipboard.
 	// Prepare the new content for the clipboard.
 	let newClipboardContent = '';
-	if (existingText && existingText.trim() !== '') {
-		// If clipboard had content, append the new link with a newline separator.
+	if (existingText.trim() !== '') {
+		// If clipboard had content (and link wasn't a duplicate), append the new link with a newline separator.
 		newClipboardContent = existingText + '\n' + link;
 	} else {
-		// If clipboard was empty (or treated as such), just use the new link.
+		// If clipboard was empty (or treated as such), just use the new link (effectively a copy).
 		newClipboardContent = link;
 	}
 
 	try {
-		// Attempt to write the new (potentially appended) content to the clipboard.
+		// Attempt to write the new (appended or copied) content to the clipboard.
 		await navigator.clipboard.writeText(newClipboardContent);
 
-		// After successful write, count the number of magnet links in the clipboard.
+		// After successful write, count the number of magnet links in the updated clipboard content.
 		const magnetLinks = newClipboardContent.split('\n').filter(line => line.startsWith('magnet:?xt=urn:btih:'));
 		const count = magnetLinks.length;
 
-		// Construct the appropriate feedback message.
-		let message = '';
-		if (newClipboardContent === link) { // Check if it was effectively a copy operation.
-			message = `Copied. Clipboard now contains 1 magnet link.`;
-		} else {
-			message = `Appended. Clipboard now contains ${count} magnet link${count === 1 ? '' : 's'}.`;
+		// Construct the appropriate feedback message based on whether it was a copy or append.
+		let feedbackMsg = ''; // Use a different variable name for clarity from the 'message' used in duplicate check.
+		if (newClipboardContent === link) { // This implies the clipboard was empty before this operation.
+			feedbackMsg = `Copied. Clipboard now contains 1 magnet link.`;
+		} else { // This implies the link was appended to existing content.
+			feedbackMsg = `Appended. Clipboard now contains ${count} magnet link${count === 1 ? '' : 's'}.`;
 		}
-		// Display the feedback message.
-		showFeedbackMessage(message);
+		// Display the success feedback message.
+		showFeedbackMessage(feedbackMsg);
 	} catch (err) {
 		// If writing to clipboard fails, log the error and show an error message.
 		console.error('Error appending to clipboard:', err);
