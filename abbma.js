@@ -28,7 +28,7 @@ const plusCircleSVG =
 // Main DOM element selections from the audiobookbay page.
 const title = document.querySelector(".postTitle"); // The main title of the audiobook post.
 const magnetLink = document.querySelector("#magnetLink"); // The existing magnet link element on the page.
-const torrent_info = document.querySelector(".torrent_info"); // The table containing torrent details like trackers and info hash.
+const torrent_info = document.querySelector(".postContent > table"); // The table containing torrent details like trackers and info hash.
 
 // Variables for tracker and hash extraction. These will be populated by parsing the torrent_info table.
 let trackers = []; // Stores an array of tracker URLs.
@@ -236,7 +236,7 @@ if (!window.isSecureContext) {
   copyButton.style.display = "none";
   appendButton.style.display = "none";
 
-  return; // Exit early and don't finish setting up the copy & append to clipboard buttons
+  // return; // Exit early and don't finish setting up the copy & append to clipboard buttons
 }
 
 // --- Event Listeners ---
