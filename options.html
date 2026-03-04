@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>AudioBookBay Magnet Assistant Settings</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 20px; color: #333; max-width: 600px; margin: 0 auto; background-color: #fcfcfc; }
+    h1 { font-size: 1.5em; color: #217e78; border-bottom: 2px solid #217e78; padding-bottom: 10px; }
+    h2 { font-size: 1.1em; color: #444; margin-top: 0; }
+
+    .section { background: white; padding: 15px; border: 1px solid #e0e0e0; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+    .setting-row { display: flex; align-items: center; margin-bottom: 15px; }
+    .setting-row:last-child { margin-bottom: 0; }
+    .setting-info { flex: 1; }
+
+    label { display: block; font-weight: 600; margin-bottom: 2px; }
+    .description { font-size: 0.85em; color: #666; }
+
+    input[type="number"] { width: 80px; padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+
+    .input-container { display: flex; align-items: center; gap: 10px; }
+    input[type="range"] { -webkit-appearance: none; width: 150px; height: 6px; background: #ddd; border-radius: 5px; outline: none; }
+    input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 16px; height: 16px; background: #217e78; cursor: pointer; border-radius: 50%; border: 2px solid white; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+    input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; background: #217e78; cursor: pointer; border-radius: 50%; border: 2px solid white; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+
+    .button-group { display: flex; gap: 8px; margin-top: 20px; align-items: center; }    button { padding: 8px 14px; background: #217e78; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: 500; }
+    button:hover { background: #1a635e; }
+    button.secondary { background: #666; }
+    button.secondary:hover { background: #555; }
+    button.danger { background: #d9534f; }
+    button.danger:hover { background: #c9302c; }
+
+    .reset-btn { 
+      background: none; 
+      color: #217e78; 
+      border: 1px solid #217e78; 
+      padding: 4px 8px; 
+      font-size: 11px; 
+      margin-left: 10px; 
+      display: inline-block;
+      visibility: visible;
+      opacity: 1;
+      transition: opacity 0.2s, background-color 0.2s;
+    }
+    .reset-btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+      border-color: #ccc;
+      color: #999;
+    }
+    .reset-btn:not(:disabled):hover { background: #f0f7f6; }
+
+    .section-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; }
+    .status { font-size: 0.9em; color: #217e78; font-weight: bold; }
+
+    .cache-stats { font-size: 0.9em; margin-bottom: 10px; padding: 8px; background: #f9f9f9; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>AudioBookBay Magnet Assistant Settings</h1>
+
+  <div class="section" id="prefetch-section">
+    <div class="section-header">
+      <h2>Pre-fetching Settings</h2>
+      <button class="reset-btn section-reset" data-section="prefetch">Reset Section</button>
+    </div>
+
+    <div class="setting-row">
+      <div class="setting-info">
+        <label for="prefetchMode">Prefetch Mode</label>
+        <div class="description">Control when magnet data is fetched on list pages.</div>
+        <div class="description" style="font-size: 0.8em; margin-top: 4px;">
+          • <b>Always:</b> Automatic pre-fetching (current behavior)<br>
+          • <b>On-Demand (Hover):</b> Fetch when hovering over buttons<br>
+          • <b>On-Demand (Click):</b> Fetch when clicking buttons<br>
+          • <b>Never:</b> Disable extension on list pages
+        </div>
+      </div>
+      <select id="prefetchMode" style="padding: 6px; border-radius: 4px; border: 1px solid #ccc; font-size: 14px; width: 160px;">
+        <option value="Always">Always</option>
+        <option value="Hover">On-Demand (Hover)</option>
+        <option value="Click">On-Demand (Click)</option>
+        <option value="Never">Never</option>
+      </select>
+      <button class="reset-btn field-reset" data-field="prefetchMode">Reset</button>
+    </div>
+
+    <div class="setting-row">
+      <div class="setting-info">
+        <label for="fetchDelay">Fetch Delay (ms)</label>
+        <div class="description">Time to wait between background requests.</div>
+      </div>
+      <div class="input-container">
+        <input type="range" id="fetchDelayRange" min="0" max="10000" step="100">
+        <input type="number" id="fetchDelay" min="0" max="10000" step="100">
+      </div>
+      <button class="reset-btn field-reset" data-field="fetchDelay">Reset</button>
+    </div>
+
+    <div class="setting-row">
+      <div class="setting-info">
+        <label for="concurrencyLimit">Concurrent Workers</label>
+        <div class="description">Number of parallel background fetches (1-10).</div>
+      </div>
+      <div class="input-container">
+        <input type="range" id="concurrencyLimitRange" min="1" max="10" step="1">
+        <input type="number" id="concurrencyLimit" min="1" max="10">
+      </div>
+      <button class="reset-btn field-reset" data-field="concurrencyLimit">Reset</button>
+    </div>
+    </div>
+
+    <div class="section" id="cache-section">
+    <div class="section-header">
+      <h2>Cache Management</h2>
+      <button class="reset-btn section-reset" data-section="cache">Reset Section</button>
+    </div>
+
+    <div class="setting-row">
+      <div class="setting-info">
+        <label for="cacheLimit">Cache Capacity</label>
+        <div class="description">Maximum number of magnet links to store.</div>
+      </div>
+      <div class="input-container">
+        <input type="range" id="cacheLimitRange" min="1" max="1000" step="10">
+        <input type="number" id="cacheLimit" min="1" max="1000">
+      </div>
+      <button class="reset-btn field-reset" data-field="cacheLimit">Reset</button>
+    </div>
+
+    <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
+
+    <div class="cache-stats" id="cacheCount">Calculating...</div>
+    <div class="button-group">
+      <button id="clearCache" class="danger">Clear All Cached Links</button>
+      <button id="printCache" class="secondary">Log Cache to Console</button>
+    </div>
+  </div>
+
+  <div class="button-group">
+    <button id="save">Save Changes</button>
+    <button id="resetAll" class="secondary">Reset All to Defaults</button>
+    <div id="saveStatus" class="status"></div>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>

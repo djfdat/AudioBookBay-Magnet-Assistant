@@ -8,11 +8,24 @@
     "48": "./icons/extension_icon48.png",
     "128": "./icons/extension_icon128.png"
   },
-  "version": "3.0.3",
+  "version": "4.0.0",
   "permissions": [
     "clipboardWrite",
-    "clipboardRead"
+    "clipboardRead",
+    "storage"
   ],
+  "host_permissions": [
+    "*://*.audiobookbay.lu/*",
+    "*://*.audiobookbay.li/*",
+    "*://*.audiobookbay.fi/*",
+    "*://*.audiobookbay.nl/*",
+    "*://*.audiobookbay.is/*",
+    "*://*.audiobookbay.se/*"
+  ],
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
   "content_scripts": [
     {
       "matches": [
@@ -25,6 +38,9 @@
       ],
       "js": [
         "abbma.js"
+      ],
+      "css": [
+        "abbma.css"
       ]
     }
   ],

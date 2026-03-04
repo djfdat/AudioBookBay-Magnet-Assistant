@@ -1,233 +1,305 @@
 (function () {
   /**
-   * Audiobookbay Magnet Link Enhancer
-   *
-   * This script enhances audiobookbay.com pages by:
-   * 1. Extracting torrent information (info hash and trackers) directly from the page.
-   * 2. Constructing a complete magnet link.
-   * 3. Adding a "Magnet Download" link and "Copy to Clipboard" / "Append to Clipboard" buttons
-   *    near the post title for easy access.
-   * 4. Providing user feedback for clipboard actions.
-   * 5. Overriding the existing magnet link on the page to use the fully constructed one,
-   *    ensuring it works even if the user is not logged in.
+   * AudioBookBay Magnet Assistant (ABBMA)
+   * 
+   * This content script enhances AudioBookBay pages by:
+   * 1. Extracting torrent info hashes and trackers.
+   * 2. Generating complete magnet links (even when logged out).
+   * 3. Injecting a unified UI for downloading, copying, and appending links.
+   * 4. Throttling pre-fetches on search/list pages to avoid rate-limiting.
    */
 
-  // --- Constants & Configuration ---
-  const magnetPrefix = "magnet:?xt=urn:btih:";
-  const linkSVG =
-    '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>';
-  const clipboardSVG =
-    '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>';
-  const plusCircleSVG =
-    '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>';
+  // --- Configuration & Constants ---
+  const MAGNET_URI_SCHEME = "magnet:?xt=urn:btih:";
+  
+  const SVG_ICONS = {
+    download: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>',
+    copy: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>',
+    append: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>'
+  };
 
-  let feedbackTimeoutId = null;
-  let feedbackSpan = null;
+  const DEFAULTS = {
+    CACHE_LIMIT: 100,
+    FETCH_DELAY_MS: 1000,
+    CONCURRENCY_LIMIT: 3,
+    PREFETCH_MODE: 'Always'
+  };
 
-  // --- Utility Functions ---
-  const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  // --- Utility Helpers ---
+  
+  const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
   /**
-   * Checks if the current page is an audiobook post page by looking for essential elements.
-   * @returns {boolean}
+   * Constructs a standard magnet URI from torrent metadata.
+   * @param {Object} metadata - Extracted torrent info.
+   * @returns {string} Fully formed magnet link.
    */
-  function checkIfOnPostPage() {
-    return (
-      document.querySelector(".postTitle") !== null &&
-      document.querySelector(".postContent > table") !== null
-    );
+  function buildMagnetLink(metadata) {
+    const { hash, title, trackers } = metadata;
+    const base = `${MAGNET_URI_SCHEME}${hash}&dn=${encodeURIComponent(title)}`;
+    const tr = trackers.length > 0 ? `&tr=${trackers.join("&tr=")}` : "";
+    return base + tr;
   }
 
   /**
-   * Displays a message to the user with a timed fade-in and fade-out effect.
-   * @param {string} message - The message to display.
+   * Scrapes metadata (hash, title, trackers) from a AudioBookBay page document.
+   * @param {Document} doc - The document to parse.
+   * @returns {Object|null} Metadata object or null if extraction fails.
    */
-  async function showFeedbackMessage(message) {
-    if (!feedbackSpan) return;
-
-    if (feedbackTimeoutId) {
-      clearTimeout(feedbackTimeoutId);
-    }
-
-    feedbackSpan.textContent = message;
-    feedbackSpan.style.transition = "opacity 0.2s ease-in";
-    feedbackSpan.style.opacity = "1";
-
-    feedbackTimeoutId = setTimeout(async () => {
-      feedbackSpan.style.transition = "opacity 0.65s ease-out";
-      feedbackSpan.style.opacity = "0";
-      await delay(650);
-      feedbackSpan.textContent = "";
-    }, 4200);
-  }
-
-  /**
-   * Extract torrent metadata using robust row-based selection.
-   * @returns {{hash: string|null, trackers: string[]}}
-   */
-  function extractTorrentMetadata() {
-    const tableRows = Array.from(document.querySelectorAll(".postContent table tr"));
-    let hash = null;
+  function extractTorrentMetadata(doc) {
+    const rows = Array.from(doc.querySelectorAll(".postContent table tr, .torrent_info tr"));
+    let infoHash = null;
     const trackers = [];
+    
+    const titleNode = doc.querySelector(".postTitle h1, .postTitle");
+    const cleanTitle = titleNode ? (titleNode.children[0] ? titleNode.children[0].textContent : titleNode.textContent).trim() : "Audiobook";
 
-    tableRows.forEach((row) => {
+    rows.forEach(row => {
       const cells = row.querySelectorAll("td");
       if (cells.length < 2) return;
-
       const label = cells[0].textContent.trim();
       const value = cells[1].textContent.trim();
-
-      if (label === "Tracker:" || label === "Announce URL:") {
-        trackers.push(value);
-      } else if (label === "Info Hash:") {
-        hash = value;
-      }
+      
+      if (label === "Tracker:" || label === "Announce URL:") trackers.push(value);
+      else if (label === "Info Hash:") infoHash = value;
     });
 
-    return { hash, trackers };
+    return infoHash ? { hash: infoHash, trackers, title: cleanTitle } : null;
   }
 
-  // --- Main Logic ---
-  async function init() {
-    if (!checkIfOnPostPage()) {
-      return;
+  // --- Storage & Cache Logic ---
+
+  async function getCachedData(url) {
+    const key = url.split("?")[0].split("#")[0]; // Normalize URL
+    const store = await chrome.storage.local.get("magnetCache");
+    return store.magnetCache ? store.magnetCache[key] : null;
+  }
+
+  async function cacheMagnetData(url, metadata) {
+    const key = url.split("?")[0].split("#")[0];
+    const store = await chrome.storage.local.get(["magnetCache", "cacheLimit"]);
+    const cache = store.magnetCache || {};
+    const limit = store.cacheLimit || DEFAULTS.CACHE_LIMIT;
+
+    cache[key] = { ...metadata, timestamp: Date.now() };
+
+    const keys = Object.keys(cache);
+    if (keys.length > limit) {
+      const oldestKey = keys.sort((a, b) => cache[a].timestamp - cache[b].timestamp)[0];
+      delete cache[oldestKey];
     }
 
-    const titleElement = document.querySelector(".postTitle");
-    const magnetLinkElement = document.querySelector("#magnetLink");
-    const { hash, trackers } = extractTorrentMetadata();
+    await chrome.storage.local.set({ magnetCache: cache });
+  }
 
-    if (!hash) {
-      console.warn("ABBMA: Info hash not found on this post page.");
-      return;
-    }
+  // --- UI Component Logic ---
 
-    const dn = titleElement.children[0] ? titleElement.children[0].innerHTML : "Audiobook";
-    let link = `${magnetPrefix}${hash}&dn=${dn}`;
+  /**
+   * Creates a unified button group for magnet link actions.
+   * @returns {Object} Methods to manage the injected component.
+   */
+  function createMagnetUI() {
+    const wrapper = document.createElement("div");
+    wrapper.className = "abbma-wrapper";
 
-    if (trackers.length > 0) {
-      link += `&tr=${trackers.join("&tr=")}`;
-    }
+    const btnGroup = document.createElement("div");
+    btnGroup.className = "abbma-button-group";
 
-    // Update existing magnet link if it exists
-    if (magnetLinkElement) {
-      magnetLinkElement.href = link;
-    }
+    const statusText = document.createElement("span");
+    statusText.setAttribute("aria-live", "polite");
+    statusText.className = "abbma-status-text";
 
-    // --- UI Creation ---
-    const buttonGroup = document.createElement("div");
-    Object.assign(buttonGroup.style, {
-      backgroundColor: "#f0f0f0",
-      borderRadius: "20px",
-      display: "inline-flex",
-      padding: "3px",
-      alignItems: "center",
-      marginBottom: "5px",
-    });
-
-    const createButton = (id, icon, title, isFirst = false, isLast = false) => {
-      const btn = document.createElement(id === "magnetLink" ? "a" : "button");
-      if (id === "magnetLink") {
-        btn.href = link;
-      } else {
-        btn.id = id;
+    let feedbackTimeout = null;
+    const updateStatus = (msg, isPermanent = false) => {
+      if (feedbackTimeout) clearTimeout(feedbackTimeout);
+      
+      // Reset transition to default (fade-in)
+      statusText.classList.remove("abbma-fade-out");
+      statusText.textContent = msg;
+      statusText.style.opacity = "1";
+      
+      if (!isPermanent) {
+        feedbackTimeout = setTimeout(() => {
+          // Trigger slow fade-out via CSS class
+          statusText.classList.add("abbma-fade-out");
+          statusText.style.opacity = "0";
+          
+          setTimeout(() => {
+            if (statusText.style.opacity === "0") {
+              statusText.textContent = "";
+              statusText.classList.remove("abbma-fade-out");
+            }
+          }, 600);
+        }, 3000);
       }
-      btn.innerHTML = icon;
-      btn.title = title;
-      Object.assign(btn.style, {
-        background: "transparent",
-        border: "none",
-        padding: "5px",
-        cursor: "pointer",
-        lineHeight: "1",
-        textDecoration: "none",
-        borderTopLeftRadius: isFirst ? "17px" : "0",
-        borderBottomLeftRadius: isFirst ? "17px" : "0",
-        borderTopRightRadius: isLast ? "17px" : "0",
-        borderBottomRightRadius: isLast ? "17px" : "0",
-      });
+    };
 
-      btn.onmouseover = () => (btn.style.backgroundColor = "#e0e0e0");
-      btn.onmouseout = () => (btn.style.backgroundColor = "transparent");
-
-      const svg = btn.querySelector("svg");
-      if (svg) {
-        Object.assign(svg.style, {
-          width: "16px",
-          height: "16px",
-          verticalAlign: "middle",
-          stroke: "#217e78",
-        });
-      }
+    const createIconButton = (svg, tooltip, positionClass) => {
+      const btn = document.createElement("button");
+      btn.innerHTML = svg;
+      btn.title = tooltip;
+      btn.className = "abbma-btn";
+      if (positionClass) btn.classList.add(positionClass);
+      
+      btnGroup.appendChild(btn);
       return btn;
     };
 
-    const downloadBtn = createButton("magnetLink", linkSVG, "Magnet Download", true, false);
-    const copyButton = createButton("copyToClipboardButton", clipboardSVG, "Copy to Clipboard");
-    const appendButton = createButton("appendToClipboardButton", plusCircleSVG, "Append to Clipboard", false, true);
+    const dlBtn = createIconButton(SVG_ICONS.download, "Download Magnet", "abbma-btn-first");
+    const cpBtn = createIconButton(SVG_ICONS.copy, "Copy to Clipboard", null);
+    const apBtn = createIconButton(SVG_ICONS.append, "Append to Clipboard", "abbma-btn-last");
 
-    buttonGroup.appendChild(downloadBtn);
-    buttonGroup.appendChild(copyButton);
-    buttonGroup.appendChild(appendButton);
+    wrapper.appendChild(btnGroup);
+    wrapper.appendChild(statusText);
 
-    titleElement.parentNode.insertBefore(buttonGroup, titleElement);
-
-    feedbackSpan = document.createElement("span");
-    Object.assign(feedbackSpan.style, {
-      marginLeft: "10px",
-      fontSize: "0.9em",
-      color: "#217e78",
-      opacity: "0",
-    });
-    buttonGroup.parentNode.insertBefore(feedbackSpan, buttonGroup.nextSibling);
-
-    if (!window.isSecureContext) {
-      console.error("ABBMA: Clipboard API requires HTTPS.");
-      showFeedbackMessage("Clipboard API requires HTTPS!");
-      copyButton.style.display = "none";
-      appendButton.style.display = "none";
-      downloadBtn.style.borderTopRightRadius = "17px";
-      downloadBtn.style.borderBottomRightRadius = "17px";
-    }
-
-    // --- Event Listeners ---
-    copyButton.addEventListener("click", async () => {
-      try {
-        await navigator.clipboard.writeText(link);
-        showFeedbackMessage("Copied!");
-      } catch (err) {
-        console.error("ABBMA: Error copying to clipboard", err);
-        showFeedbackMessage("Error copying! Check permissions.");
+    return {
+      element: wrapper,
+      btnGroup,
+      updateStatus,
+      activate: (metadata) => {
+        const link = buildMagnetLink(metadata);
+        
+        // Reset inline styles used for pending/on-demand states
+        btnGroup.style.opacity = "";
+        btnGroup.style.pointerEvents = "";
+        btnGroup.style.cursor = "";
+        
+        btnGroup.classList.add("abbma-active");
+        
+        dlBtn.onclick = (e) => { e.stopPropagation(); window.location.href = link; };
+        cpBtn.onclick = async (e) => {
+          e.stopPropagation();
+          try {
+            await navigator.clipboard.writeText(link);
+            updateStatus("Copied!");
+          } catch (e) { updateStatus("Error!"); }
+        };
+        apBtn.onclick = async (e) => {
+          e.stopPropagation();
+          try {
+            const current = await navigator.clipboard.readText().catch(() => "");
+            if (current.includes(link)) return updateStatus("Duplicate!");
+            await navigator.clipboard.writeText(current ? `${current}\n${link}` : link);
+            updateStatus("Appended!");
+          } catch (e) { updateStatus("Error!"); }
+        };
       }
-    });
-
-    appendButton.addEventListener("click", async () => {
-      let existingText = "";
-      try {
-        existingText = await navigator.clipboard.readText();
-      } catch (err) {
-        console.warn("ABBMA: Could not read clipboard", err);
-      }
-
-      const lines = existingText ? existingText.split("\n").map(l => l.trim()) : [];
-      if (lines.includes(link.trim())) {
-        const count = lines.filter(l => l.startsWith(magnetPrefix)).length;
-        showFeedbackMessage(`Duplicate. Clipboard has ${count} link(s).`);
-        return;
-      }
-
-      const newContent = existingText.trim() ? `${existingText}\n${link}` : link;
-      try {
-        await navigator.clipboard.writeText(newContent);
-        const count = newContent.split("\n").filter(l => l.startsWith(magnetPrefix)).length;
-        showFeedbackMessage(existingText.trim() ? `Appended. Total: ${count}` : `Copied. Total: 1`);
-      } catch (err) {
-        console.error("ABBMA: Error appending to clipboard", err);
-        showFeedbackMessage("Error appending!");
-      }
-    });
+    };
   }
 
-  // Initialize the script
-  init().catch(err => console.error("ABBMA: Initialization error", err));
+  // --- Fetch Logic ---
+
+  /**
+   * Fetches magnet data for a given URL and activates the UI.
+   */
+  async function fetchAndActivate(url, ui, delayMs = 0) {
+    const cached = await getCachedData(url);
+    if (cached) {
+      ui.activate(cached);
+      return true;
+    }
+
+    ui.updateStatus("Loading...", true);
+    if (delayMs > 0) await sleep(delayMs);
+
+    try {
+      const response = await fetch(url);
+      const html = await response.text();
+      const doc = new DOMParser().parseFromString(html, "text/html");
+      const meta = extractTorrentMetadata(doc);
+      if (meta) {
+        await cacheMagnetData(url, meta);
+        ui.activate(meta);
+        ui.updateStatus("Ready");
+        return true;
+      } else {
+        ui.updateStatus("Parse Error");
+      }
+    } catch (e) {
+      ui.updateStatus("Network Error");
+    }
+    return false;
+  }
+
+  // --- Page Handlers ---
+
+  async function processPostPage() {
+    const postTitle = document.querySelector(".postTitle");
+    if (!postTitle) return;
+
+    const ui = createMagnetUI();
+    ui.element.classList.add("abbma-post-wrapper");
+    postTitle.parentNode.insertBefore(ui.element, postTitle);
+
+    const metadata = extractTorrentMetadata(document);
+    if (metadata) {
+      await cacheMagnetData(window.location.href, metadata);
+      ui.activate(metadata);
+      const nativeLink = document.querySelector("#magnetLink");
+      if (nativeLink) nativeLink.href = buildMagnetLink(metadata);
+    } else {
+      ui.updateStatus("Extraction Error");
+    }
+  }
+
+  async function processListPage() {
+    const bookLinks = Array.from(document.querySelectorAll(".postTitle a"));
+    if (bookLinks.length === 0) return;
+
+    const config = await chrome.storage.local.get(["fetchDelay", "concurrencyLimit", "prefetchMode"]);
+    const delayMs = config.fetchDelay ?? DEFAULTS.FETCH_DELAY_MS;
+    const workersCount = config.concurrencyLimit ?? DEFAULTS.CONCURRENCY_LIMIT;
+    const mode = config.prefetchMode ?? DEFAULTS.PREFETCH_MODE;
+
+    if (mode === 'Never') return;
+
+    const taskQueue = bookLinks.map(link => {
+      const ui = createMagnetUI();
+      ui.element.classList.add("abbma-list-wrapper");
+      link.parentNode.insertBefore(ui.element, link);
+      
+      const url = link.href;
+
+      // Handle On-Demand modes
+      if (mode === 'Hover') {
+        ui.btnGroup.style.cursor = "wait";
+        ui.btnGroup.addEventListener('mouseenter', () => fetchAndActivate(url, ui), { once: true });
+      } else if (mode === 'Click') {
+        ui.btnGroup.style.pointerEvents = "auto";
+        ui.btnGroup.style.cursor = "pointer";
+        ui.btnGroup.addEventListener('click', (e) => {
+          e.stopPropagation();
+          fetchAndActivate(url, ui);
+        }, { once: true });
+      }
+
+      return { url, ui };
+    });
+
+    // Worker pool for 'Always' mode
+    if (mode === 'Always') {
+      async function fetchWorker() {
+        while (taskQueue.length > 0) {
+          const task = taskQueue.shift();
+          if (!task) break;
+          await fetchAndActivate(task.url, task.ui, delayMs);
+        }
+      }
+      const pool = Array(workersCount).fill(null).map(() => fetchWorker());
+      await Promise.all(pool);
+    }
+  }
+
+  // --- Initialization ---
+
+  async function init() {
+    const isSinglePost = document.querySelector(".postContent > table") !== null;
+    if (isSinglePost) {
+      processPostPage();
+    } else {
+      processListPage();
+    }
+  }
+
+  init().catch(err => console.error("ABBMA: Critical Initialization Failure", err));
 })();
