@@ -8,7 +8,11 @@
     "48": "./icons/extension_icon48.png",
     "128": "./icons/extension_icon128.png"
   },
-  "version": "3.0.2",
+  "version": "3.0.3",
+  "permissions": [
+    "clipboardWrite",
+    "clipboardRead"
+  ],
   "content_scripts": [
     {
       "matches": [
