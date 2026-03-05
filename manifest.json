@@ -37,6 +37,13 @@
         "*://*.audiobookbay.se/*"
       ],
       "js": [
+        "platform/browser-api.js",
+        "core/constants.js",
+        "core/magnet.js",
+        "core/parser.js",
+        "core/cache.js",
+        "core/fetch-queue.js",
+        "ui/injector.js",
         "abbma.js"
       ],
       "css": [
