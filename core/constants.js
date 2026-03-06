@@ -16,18 +16,29 @@
   const MAGNET_URI_SCHEME = "magnet:?xt=urn:btih:";
   const TITLE_FALLBACK = "Audiobook";
 
+  // List pages are intentionally on-demand only.
+  // "Always" was removed to avoid automatic background fetching on homepage/search pages.
   const PREFETCH_MODES = {
-    ALWAYS: "Always",
     HOVER: "Hover",
     CLICK: "Click",
     NEVER: "Never"
   };
+  const PREFETCH_MODE_VALUES = Object.values(PREFETCH_MODES);
 
+  // Older installs may still have removed values (for example "Always") in storage.
+  // Unknown modes are normalized to Hover so users keep a safe, non-automatic default.
+  function normalizePrefetchMode(mode) {
+    return PREFETCH_MODE_VALUES.includes(mode)
+      ? mode
+      : PREFETCH_MODES.HOVER;
+  }
+
+  // Hover is the default to keep list-page prefetch explicit and user-driven.
   const SETTINGS_DEFAULTS = {
     cacheLimit: 100,
     fetchDelay: 1000,
     concurrencyLimit: 3,
-    prefetchMode: PREFETCH_MODES.ALWAYS
+    prefetchMode: PREFETCH_MODES.HOVER
   };
 
   const STORAGE_KEYS = {
@@ -58,6 +69,8 @@
     MAGNET_URI_SCHEME,
     TITLE_FALLBACK,
     PREFETCH_MODES,
+    PREFETCH_MODE_VALUES,
+    normalizePrefetchMode,
     SETTINGS_DEFAULTS,
     STORAGE_KEYS,
     SELECTORS,

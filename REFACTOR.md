@@ -91,7 +91,7 @@ Handles throttled fetching and concurrency control for list-page prefetching:
 Content-script UI layer. Creates the button group (download / copy / append), handles status feedback with fade animations, and orchestrates the two page flows:
 
 - **Post page** — Extracts metadata from the current document, injects controls above the title, and patches the native magnet link.
-- **List page** — Injects controls next to each book link and delegates fetching to the configured prefetch mode (Always / Hover / Click / Never).
+- **List page** — Injects controls next to each book link and delegates fetching to the configured prefetch mode (Hover / Click / Never).
 
 ### `ui/options.js`
 

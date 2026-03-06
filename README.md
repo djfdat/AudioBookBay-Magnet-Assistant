@@ -21,9 +21,8 @@ Manage your downloads with ease using integrated clipboard actions:
 *   **✨ Smart Feedback:** Real-time status updates (e.g., "Copied!", "Appended!", "Duplicate!") let you know exactly what's happening.
 
 ### 3. Intelligent Pre-fetching (List View)
-Browse faster with background pre-fetching. The assistant can "look ahead" and grab magnet data for every book in a list before you even click them.
-*   **Lightning Fast:** Multi-threaded background workers fetch data in parallel.
-*   **On-Demand Options:** Choose between "Always", "Hover", "Click", or "Never" depending on speed vs. bandwidth preferences.
+Browse faster with on-demand pre-fetching. The assistant fetches magnet data when you interact with list-page controls.
+*   **On-Demand Options:** Choose between "Hover", "Click", or "Never" depending on speed vs. bandwidth preferences.
 
 ---
 
@@ -47,12 +46,10 @@ The extension includes a robust settings page to tune performance to your needs.
 
 ### Pre-fetching Settings
 *   **Prefetch Mode:** 
-    *   `Always`: Fetch all magnet links on the page automatically.
     *   `On-Demand (Hover)`: Only fetch when you hover over the buttons.
     *   `On-Demand (Click)`: Only fetch when you actually click a button.
     *   `Never`: Disable the extension on list pages.
-*   **Fetch Delay:** Add a delay between background requests to be respectful to the site's servers.
-*   **Concurrent Workers:** Control how many background requests happen at the same time (1-10).
+*   **Book Pages:** Magnet metadata is still prepared automatically on single-book pages.
 
 ### Cache Management
 *   **Cache Capacity:** Store up to 1000 magnet links locally (default: 100) so they load instantly when you revisit a page.

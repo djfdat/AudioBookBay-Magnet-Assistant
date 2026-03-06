@@ -8,7 +8,7 @@
     "48": "./icons/extension_icon48.png",
     "128": "./icons/extension_icon128.png"
   },
-  "version": "4.0.0",
+  "version": "4.0.1",
   "permissions": [
     "clipboardWrite",
     "clipboardRead",

@@ -29,13 +29,13 @@
     button.danger { background: #d9534f; }
     button.danger:hover { background: #c9302c; }
 
-    .reset-btn { 
-      background: none; 
-      color: #217e78; 
-      border: 1px solid #217e78; 
-      padding: 4px 8px; 
-      font-size: 11px; 
-      margin-left: 10px; 
+    .reset-btn {
+      background: none;
+      color: #217e78;
+      border: 1px solid #217e78;
+      padding: 4px 8px;
+      font-size: 11px;
+      margin-left: 10px;
       display: inline-block;
       visibility: visible;
       opacity: 1;
@@ -69,14 +69,13 @@
         <label for="prefetchMode">Prefetch Mode</label>
         <div class="description">Control when magnet data is fetched on list pages.</div>
         <div class="description" style="font-size: 0.8em; margin-top: 4px;">
-          • <b>Always:</b> Automatic pre-fetching (current behavior)<br>
-          • <b>On-Demand (Hover):</b> Fetch when hovering over buttons<br>
+          • <b>On-Demand (Hover) [Default]:</b> Fetch when hovering over buttons<br>
           • <b>On-Demand (Click):</b> Fetch when clicking buttons<br>
-          • <b>Never:</b> Disable extension on list pages
+          • <b>Never:</b> Disable extension on list pages<br>
+          • <b>Book Pages:</b> Magnet data is still prepared automatically
         </div>
       </div>
       <select id="prefetchMode" style="padding: 6px; border-radius: 4px; border: 1px solid #ccc; font-size: 14px; width: 160px;">
-        <option value="Always">Always</option>
         <option value="Hover">On-Demand (Hover)</option>
         <option value="Click">On-Demand (Click)</option>
         <option value="Never">Never</option>
@@ -90,8 +89,8 @@
         <div class="description">Time to wait between background requests.</div>
       </div>
       <div class="input-container">
-        <input type="range" id="fetchDelayRange" min="0" max="10000" step="100">
-        <input type="number" id="fetchDelay" min="0" max="10000" step="100">
+        <input type="range" id="fetchDelayRange" min="5000" max="10000" step="1000">
+        <input type="number" id="fetchDelay" min="5000" max="10000" step="1000">
       </div>
       <button class="reset-btn field-reset" data-field="fetchDelay">Reset</button>
     </div>

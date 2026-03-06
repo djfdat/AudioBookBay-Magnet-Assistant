@@ -10,6 +10,8 @@
   }
 
   function normalizeUrlKey(url) {
+    // Query/hash changes are not meaningful for ABB book pages.
+    // Storing by normalized path prevents duplicate cache entries for the same post.
     return String(url || "").split("?")[0].split("#")[0];
   }
 
@@ -41,6 +43,7 @@
     cache[key] = { ...metadata, timestamp: Date.now() };
     const keys = Object.keys(cache);
 
+    // Keep cache bounded by evicting the oldest entry when the configured limit is exceeded.
     if (keys.length > limit) {
       const oldestKey = keys.sort((a, b) => {
         const left = Number(cache[a] && cache[a].timestamp) || 0;
@@ -65,6 +68,16 @@
         ? store[key]
         : constants.SETTINGS_DEFAULTS[key];
     });
+
+    // Migrate legacy/invalid mode values (e.g. removed "Always") at read time.
+    // Persisting the normalized value keeps storage and UI consistent after first load.
+    const normalizedPrefetchMode = constants.normalizePrefetchMode(settings.prefetchMode);
+    if (settings.prefetchMode !== normalizedPrefetchMode) {
+      settings.prefetchMode = normalizedPrefetchMode;
+      await browserApi.storage.set({
+        [constants.STORAGE_KEYS.prefetchMode]: normalizedPrefetchMode
+      });
+    }
 
     return settings;
   }

@@ -149,6 +149,7 @@
   }
 
   async function fetchAndActivate(url, ui, delayMs = 0) {
+    // Cache-first keeps interactions immediate on revisits and avoids duplicate network work.
     const cached = await cache.getCachedData(url);
     if (cached) {
       ui.activate(cached);
@@ -180,6 +181,7 @@
 
     const metadata = parser.extractTorrentMetadata(document);
     if (metadata) {
+      // Single book pages still prepare data automatically so one-click actions stay instant.
       await cache.cacheMagnetData(global.location.href, metadata);
       ui.activate(metadata);
 
@@ -200,15 +202,14 @@
     }
 
     const settings = await cache.loadSettingsWithDefaults();
-    const delayMs = settings.fetchDelay;
-    const workersCount = settings.concurrencyLimit;
-    const mode = settings.prefetchMode;
+    const mode = constants.normalizePrefetchMode(settings.prefetchMode);
 
     if (mode === constants.PREFETCH_MODES.NEVER) {
       return;
     }
 
-    const taskQueue = bookLinks.map((link) => {
+    // List pages no longer auto-prefetch; fetches happen only from explicit user interaction.
+    bookLinks.forEach((link) => {
       const ui = createMagnetUI();
       ui.element.classList.add("abbma-list-wrapper");
       link.parentNode.insertBefore(ui.element, link);
@@ -216,26 +217,20 @@
       const url = link.href;
       if (mode === constants.PREFETCH_MODES.HOVER) {
         ui.btnGroup.style.cursor = "wait";
+        // `once: true` prevents repeated fetches for the same row after activation.
         ui.btnGroup.addEventListener("mouseenter", () => {
           void fetchAndActivate(url, ui);
         }, { once: true });
       } else if (mode === constants.PREFETCH_MODES.CLICK) {
         ui.btnGroup.style.pointerEvents = "auto";
         ui.btnGroup.style.cursor = "pointer";
+        // Click mode minimizes network usage by fetching only when the user commits to action.
         ui.btnGroup.addEventListener("click", (event) => {
           event.stopPropagation();
           void fetchAndActivate(url, ui);
         }, { once: true });
       }
-
-      return { url, ui };
     });
-
-    if (mode === constants.PREFETCH_MODES.ALWAYS) {
-      await fetchQueue.runWorkerPool(taskQueue, workersCount, async (task) => {
-        await fetchAndActivate(task.url, task.ui, delayMs);
-      });
-    }
   }
 
   function isSinglePostPage() {

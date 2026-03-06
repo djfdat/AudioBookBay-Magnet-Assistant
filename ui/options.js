@@ -17,6 +17,7 @@
   };
 
   function syncInputValues(key, value) {
+    // Keep number/range/select controls in sync so each setting has one source of truth in the UI.
     const numberInput = document.getElementById(key);
     const rangeInput = document.getElementById(`${key}Range`);
     const selectInput = document.getElementById(key);
@@ -48,6 +49,7 @@
         return;
       }
 
+      // Section reset should only enable when at least one field in that section differs from defaults.
       const isSectionModified = fields.some((fieldKey) => {
         const input = document.getElementById(fieldKey);
         return input && String(input.value) !== String(DEFAULTS[fieldKey]);
@@ -63,11 +65,28 @@
   async function initializeOptions() {
     const settingKeys = Object.keys(DEFAULTS);
     const store = await browserApi.storage.get([...settingKeys, constants.STORAGE_KEYS.magnetCache]);
+    let migratedPrefetchMode = null;
 
     settingKeys.forEach((key) => {
-      const value = store[key] !== undefined ? store[key] : DEFAULTS[key];
+      const rawValue = store[key] !== undefined ? store[key] : DEFAULTS[key];
+      // Normalize here so deprecated values cannot leave the select in an invalid state.
+      const value = key === constants.STORAGE_KEYS.prefetchMode
+        ? constants.normalizePrefetchMode(rawValue)
+        : rawValue;
+
+      if (key === constants.STORAGE_KEYS.prefetchMode && value !== rawValue) {
+        migratedPrefetchMode = value;
+      }
+
       syncInputValues(key, value);
     });
+
+    if (migratedPrefetchMode !== null) {
+      // Write back once so future reads are clean and no repeat migration is needed.
+      await browserApi.storage.set({
+        [constants.STORAGE_KEYS.prefetchMode]: migratedPrefetchMode
+      });
+    }
 
     const cacheData = store[constants.STORAGE_KEYS.magnetCache] || {};
     const count = Object.keys(cacheData).length;
@@ -84,7 +103,10 @@
 
       settingsToSave[key] = typeof DEFAULTS[key] === "number"
         ? parseInt(input.value, 10)
-        : input.value;
+        // Normalize at save-time to guard against stale/manual values.
+        : (key === constants.STORAGE_KEYS.prefetchMode
+          ? constants.normalizePrefetchMode(input.value)
+          : input.value);
     });
 
     await browserApi.storage.set(settingsToSave);
