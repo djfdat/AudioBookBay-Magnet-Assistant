@@ -20,7 +20,7 @@
     input[type="number"] { width: 80px; padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
 
     .input-container { display: flex; align-items: center; gap: 10px; }
-    input[type="range"] { -webkit-appearance: none; width: 150px; height: 6px; background: #ddd; border-radius: 5px; outline: none; }
+    input[type="range"] { appearance: none; -webkit-appearance: none; width: 150px; height: 6px; background: #ddd; border-radius: 5px; outline: none; }
     input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 16px; height: 16px; background: #217e78; cursor: pointer; border-radius: 50%; border: 2px solid white; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
     input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; background: #217e78; cursor: pointer; border-radius: 50%; border: 2px solid white; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
 
@@ -89,30 +89,17 @@
       <button class="reset-btn field-reset" data-field="prefetchMode">Reset</button>
     </div>
 
-    <!-- Delay is retained for compatibility and future queue-based modes. -->
+    <!-- Delay is bounded to prevent overly aggressive or extremely slow behavior. -->
     <div class="setting-row">
       <div class="setting-info">
-        <label for="fetchDelay">Fetch Delay (ms)</label>
-        <div class="description">Time to wait between background requests.</div>
+        <label for="fetchDelay">Fetch Delay (5-20 seconds)</label>
+        <div class="description">Time to wait between background requests (5000-20000 ms).</div>
       </div>
       <div class="input-container">
-        <input type="range" id="fetchDelayRange" min="5000" max="10000" step="1000">
-        <input type="number" id="fetchDelay" min="5000" max="10000" step="1000">
+        <input type="range" id="fetchDelayRange" min="5000" max="20000" step="1000">
+        <input type="number" id="fetchDelay" min="5000" max="20000" step="1000">
       </div>
       <button class="reset-btn field-reset" data-field="fetchDelay">Reset</button>
-    </div>
-
-    <!-- Concurrency control remains available for queue-based fetch strategies. -->
-    <div class="setting-row">
-      <div class="setting-info">
-        <label for="concurrencyLimit">Concurrent Workers</label>
-        <div class="description">Number of parallel background fetches (1-10).</div>
-      </div>
-      <div class="input-container">
-        <input type="range" id="concurrencyLimitRange" min="1" max="10" step="1">
-        <input type="number" id="concurrencyLimit" min="1" max="10">
-      </div>
-      <button class="reset-btn field-reset" data-field="concurrencyLimit">Reset</button>
     </div>
     </div>
 
@@ -141,6 +128,34 @@
     <div class="button-group">
       <button id="clearCache" class="danger">Clear All Cached Links</button>
       <button id="printCache" class="secondary">Log Cache to Console</button>
+    </div>
+  </div>
+
+  <!-- Domain preferences are separated from fetch/cache performance controls. -->
+  <div class="section" id="domain-section">
+    <div class="section-header">
+      <h2>AudioBookBay Domain</h2>
+      <button class="reset-btn section-reset" data-section="domain">Reset Section</button>
+    </div>
+
+    <div class="setting-row">
+      <div class="setting-info">
+        <label for="preferredDomain">Preferred AudioBookBay Domain</label>
+        <div class="description">Used by the Open AudioBookBay button.</div>
+      </div>
+      <select id="preferredDomain" style="padding: 6px; border-radius: 4px; border: 1px solid #ccc; font-size: 14px; width: 180px;">
+        <option value="audiobookbay.lu">audiobookbay.lu (Default)</option>
+        <option value="audiobookbay.li">audiobookbay.li</option>
+        <option value="audiobookbay.fi">audiobookbay.fi</option>
+        <option value="audiobookbay.nl">audiobookbay.nl</option>
+        <option value="audiobookbay.is">audiobookbay.is</option>
+        <option value="audiobookbay.se">audiobookbay.se</option>
+      </select>
+      <button class="reset-btn field-reset" data-field="preferredDomain">Reset</button>
+    </div>
+
+    <div class="button-group" style="margin-top: 0;">
+      <button id="openAbb" class="secondary">Open AudioBookBay</button>
     </div>
   </div>
 

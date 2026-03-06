@@ -84,6 +84,24 @@
       });
     }
 
+    // Clamp legacy/out-of-range delays and persist once so all future reads are valid.
+    const normalizedFetchDelay = constants.normalizeFetchDelay(settings.fetchDelay);
+    if (settings.fetchDelay !== normalizedFetchDelay) {
+      settings.fetchDelay = normalizedFetchDelay;
+      await browserApi.storage.set({
+        [constants.STORAGE_KEYS.fetchDelay]: normalizedFetchDelay
+      });
+    }
+
+    // Domain preference is constrained to known ABB mirrors for the options-page quick-open button.
+    const normalizedPreferredDomain = constants.normalizeAbbDomain(settings.preferredDomain);
+    if (settings.preferredDomain !== normalizedPreferredDomain) {
+      settings.preferredDomain = normalizedPreferredDomain;
+      await browserApi.storage.set({
+        [constants.STORAGE_KEYS.preferredDomain]: normalizedPreferredDomain
+      });
+    }
+
     return settings;
   }
 

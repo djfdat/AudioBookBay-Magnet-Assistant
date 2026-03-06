@@ -15,49 +15,126 @@
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
+  // Global throttle state shared by all list-page interactions in this content script.
+  // Slot reservation is serialized so concurrent hover/click bursts cannot bypass delay.
+  let nextAllowedFetchAt = 0;
+  let reservationChain = Promise.resolve();
+  let lastFetchStartedAt = Number.NEGATIVE_INFINITY;
+  // In-flight map ensures repeated interactions for the same book share one request.
+  const inFlightByUrl = new Map();
+
+  async function reserveThrottleSlot(delayMs) {
+    const normalizedDelay = Math.max(0, Number(delayMs) || 0);
+
+    let releaseReservation;
+    const reservationAssigned = new Promise((resolve) => {
+      releaseReservation = resolve;
+    });
+
+    reservationChain = reservationChain
+      .catch(() => {})
+      .then(() => {
+        const now = Date.now();
+        // Reserve a concrete start slot now, so queued requests can show total wait time
+        // including delays from requests that were queued earlier.
+        const scheduledAt = Math.max(now, nextAllowedFetchAt);
+        nextAllowedFetchAt = scheduledAt + normalizedDelay;
+        releaseReservation({ scheduledAt, normalizedDelay });
+      });
+
+    return reservationAssigned;
+  }
+
+  async function waitForThrottleWindow(delayMs, onDelayUpdate) {
+    const { scheduledAt, normalizedDelay } = await reserveThrottleSlot(delayMs);
+
+    while (true) {
+      const now = Date.now();
+      // Enforce delay from the previous real request start, not just reserved schedule,
+      // so the minimum spacing remains strict even when earlier requests start late.
+      const waitUntil = Math.max(scheduledAt, lastFetchStartedAt + normalizedDelay);
+      const remainingMs = Math.max(0, waitUntil - now);
+      if (remainingMs <= 0) {
+        break;
+      }
+      if (typeof onDelayUpdate === "function") {
+        onDelayUpdate(remainingMs, normalizedDelay);
+      }
+      await sleep(Math.min(250, remainingMs));
+    }
+
+    lastFetchStartedAt = Date.now();
+  }
+
   async function fetchMagnetMetadata(url, options = {}) {
     const delayMs = Number(options.delayMs) || 0;
-    // Cache-first flow avoids unnecessary page fetches when metadata is already known.
-    const cached = await cache.getCachedData(url);
+    const onDelayUpdate = options.onDelayUpdate;
+    const onNetworkStart = options.onNetworkStart;
+    const requestKey = cache.normalizeUrlKey(url);
 
-    if (cached) {
-      return {
-        ok: true,
-        fromCache: true,
-        metadata: cached
-      };
+    // Return the existing promise when the same URL is already being fetched.
+    const existingRequest = inFlightByUrl.get(requestKey);
+    if (existingRequest) {
+      return existingRequest;
     }
 
-    if (delayMs > 0) {
-      await sleep(delayMs);
-    }
+    const requestPromise = (async () => {
+      // Cache-first flow avoids unnecessary page fetches when metadata is already known.
+      const cached = await cache.getCachedData(url);
 
-    try {
-      // Parse remote HTML as a detached document so extraction logic can reuse the same parser path.
-      const response = await fetch(url);
-      const html = await response.text();
-      const doc = new DOMParser().parseFromString(html, "text/html");
-      const metadata = parser.extractTorrentMetadata(doc);
-
-      if (!metadata) {
-        // Distinguish parse failures from network failures for clearer UI feedback.
+      if (cached) {
         return {
-          ok: false,
-          errorType: "parse"
+          ok: true,
+          fromCache: true,
+          metadata: cached
         };
       }
 
-      await cache.cacheMagnetData(url, metadata);
-      return {
-        ok: true,
-        fromCache: false,
-        metadata
-      };
-    } catch (_err) {
-      return {
-        ok: false,
-        errorType: "network"
-      };
+      if (delayMs > 0) {
+        await waitForThrottleWindow(delayMs, onDelayUpdate);
+      }
+
+      try {
+        // Parse remote HTML as a detached document so extraction logic can reuse the same parser path.
+        if (typeof onNetworkStart === "function") {
+          onNetworkStart();
+        }
+        const response = await fetch(url);
+        const html = await response.text();
+        const doc = new DOMParser().parseFromString(html, "text/html");
+        const metadata = parser.extractTorrentMetadata(doc);
+
+        if (!metadata) {
+          // Distinguish parse failures from network failures for clearer UI feedback.
+          return {
+            ok: false,
+            errorType: "parse"
+          };
+        }
+
+        await cache.cacheMagnetData(url, metadata);
+        return {
+          ok: true,
+          fromCache: false,
+          metadata
+        };
+      } catch (_err) {
+        return {
+          ok: false,
+          errorType: "network"
+        };
+      }
+    })();
+
+    inFlightByUrl.set(requestKey, requestPromise);
+
+    try {
+      return await requestPromise;
+    } finally {
+      // Remove only if this promise is still the active entry for the key.
+      if (inFlightByUrl.get(requestKey) === requestPromise) {
+        inFlightByUrl.delete(requestKey);
+      }
     }
   }
 

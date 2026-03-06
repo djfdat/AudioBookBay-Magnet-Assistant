@@ -18,6 +18,9 @@
 
   const MAGNET_URI_SCHEME = "magnet:?xt=urn:btih:";
   const TITLE_FALLBACK = "Audiobook";
+  const FETCH_DELAY_MIN_MS = 5000;
+  const FETCH_DELAY_MAX_MS = 20000;
+  const DEFAULT_ABB_DOMAIN = ABB_DOMAINS[0];
 
   // List pages are intentionally on-demand only.
   // "Always" was removed to avoid automatic background fetching on homepage/search pages.
@@ -38,19 +41,35 @@
 
   // Hover is the default to keep list-page prefetch explicit and user-driven.
   const SETTINGS_DEFAULTS = {
-    cacheLimit: 100,
-    fetchDelay: 1000,
-    concurrencyLimit: 3,
-    prefetchMode: PREFETCH_MODES.HOVER
+    cacheLimit: 1000,
+    fetchDelay: FETCH_DELAY_MIN_MS,
+    prefetchMode: PREFETCH_MODES.HOVER,
+    preferredDomain: DEFAULT_ABB_DOMAIN
   };
+
+  function normalizeFetchDelay(value) {
+    // Coerce legacy/string values and clamp to supported range.
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) {
+      return SETTINGS_DEFAULTS.fetchDelay;
+    }
+
+    return Math.max(FETCH_DELAY_MIN_MS, Math.min(FETCH_DELAY_MAX_MS, Math.trunc(parsed)));
+  }
+
+  function normalizeAbbDomain(domain) {
+    return ABB_DOMAINS.includes(domain)
+      ? domain
+      : DEFAULT_ABB_DOMAIN;
+  }
 
   // Storage keys are centralized to prevent typo-driven split-brain state across modules.
   const STORAGE_KEYS = {
     magnetCache: "magnetCache",
     cacheLimit: "cacheLimit",
     fetchDelay: "fetchDelay",
-    concurrencyLimit: "concurrencyLimit",
-    prefetchMode: "prefetchMode"
+    prefetchMode: "prefetchMode",
+    preferredDomain: "preferredDomain"
   };
 
   // Selectors are ordered by confidence so query helpers can gracefully degrade
@@ -78,9 +97,14 @@
     ABB_MATCH_PATTERNS,
     MAGNET_URI_SCHEME,
     TITLE_FALLBACK,
+    FETCH_DELAY_MIN_MS,
+    FETCH_DELAY_MAX_MS,
+    DEFAULT_ABB_DOMAIN,
     PREFETCH_MODES,
     PREFETCH_MODE_VALUES,
     normalizePrefetchMode,
+    normalizeFetchDelay,
+    normalizeAbbDomain,
     SETTINGS_DEFAULTS,
     STORAGE_KEYS,
     SELECTORS,

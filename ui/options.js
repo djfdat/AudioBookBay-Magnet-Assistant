@@ -14,9 +14,16 @@
 
   const DEFAULTS = constants.SETTINGS_DEFAULTS;
   const UI_SECTIONS = {
-    prefetch: ["fetchDelay", "concurrencyLimit", "prefetchMode"],
-    cache: ["cacheLimit"]
+    prefetch: ["fetchDelay", "prefetchMode"],
+    cache: ["cacheLimit"],
+    domain: ["preferredDomain"]
   };
+
+  function updateCacheCount(cacheData) {
+    const count = Object.keys(cacheData || {}).length;
+    // Keep cache size text in one place so init and live updates stay consistent.
+    document.getElementById("cacheCount").textContent = `Total cached magnet links: ${count}`;
+  }
 
   function syncInputValues(key, value) {
     // Keep number/range/select controls in sync so each setting has one source of truth in the UI.
@@ -69,33 +76,36 @@
     // Read all settings in one storage call to reduce async churn and keep UI init atomic.
     const settingKeys = Object.keys(DEFAULTS);
     const store = await browserApi.storage.get([...settingKeys, constants.STORAGE_KEYS.magnetCache]);
-    let migratedPrefetchMode = null;
+    const migratedSettings = {};
 
     settingKeys.forEach((key) => {
       const rawValue = store[key] !== undefined ? store[key] : DEFAULTS[key];
-      // Normalize here so deprecated values cannot leave the select in an invalid state.
-      const value = key === constants.STORAGE_KEYS.prefetchMode
-        ? constants.normalizePrefetchMode(rawValue)
-        : rawValue;
+      let value = rawValue;
 
-      if (key === constants.STORAGE_KEYS.prefetchMode && value !== rawValue) {
-        migratedPrefetchMode = value;
+      // Normalize persisted values so options always opens in a valid state.
+      if (key === constants.STORAGE_KEYS.prefetchMode) {
+        value = constants.normalizePrefetchMode(rawValue);
+      } else if (key === constants.STORAGE_KEYS.fetchDelay) {
+        value = constants.normalizeFetchDelay(rawValue);
+      } else if (key === constants.STORAGE_KEYS.preferredDomain) {
+        value = constants.normalizeAbbDomain(rawValue);
+      }
+
+      if (value !== rawValue) {
+        migratedSettings[key] = value;
       }
 
       syncInputValues(key, value);
     });
 
-    if (migratedPrefetchMode !== null) {
+    if (Object.keys(migratedSettings).length > 0) {
       // Write back once so future reads are clean and no repeat migration is needed.
-      await browserApi.storage.set({
-        [constants.STORAGE_KEYS.prefetchMode]: migratedPrefetchMode
-      });
+      await browserApi.storage.set(migratedSettings);
     }
 
     const cacheData = store[constants.STORAGE_KEYS.magnetCache] || {};
-    const count = Object.keys(cacheData).length;
     // Show cache size here so users can make informed cleanup/capacity decisions.
-    document.getElementById("cacheCount").textContent = `Total cached magnet links: ${count}`;
+    updateCacheCount(cacheData);
   }
 
   async function saveSettings() {
@@ -109,11 +119,15 @@
       }
 
       settingsToSave[key] = typeof DEFAULTS[key] === "number"
-        ? parseInt(input.value, 10)
+        ? (key === constants.STORAGE_KEYS.fetchDelay
+          ? constants.normalizeFetchDelay(parseInt(input.value, 10))
+          : parseInt(input.value, 10))
         // Normalize at save-time to guard against stale/manual values.
         : (key === constants.STORAGE_KEYS.prefetchMode
           ? constants.normalizePrefetchMode(input.value)
-          : input.value);
+          : (key === constants.STORAGE_KEYS.preferredDomain
+            ? constants.normalizeAbbDomain(input.value)
+            : input.value));
     });
 
     await browserApi.storage.set(settingsToSave);
@@ -167,6 +181,14 @@
     global.alert("Cache data has been logged to the console (F12 > Console).");
   }
 
+  function openAudioBookBay() {
+    // Use the current selected value so users can open immediately before saving if desired.
+    const domainSelect = document.getElementById(constants.STORAGE_KEYS.preferredDomain);
+    const domain = constants.normalizeAbbDomain(domainSelect ? domainSelect.value : DEFAULTS.preferredDomain);
+    const url = `https://${domain}/`;
+    global.open(url, "_blank", "noopener");
+  }
+
   function bindRangeAndInputSync() {
     // Two-way sync keeps sliders and number fields visually and semantically aligned.
     Object.keys(DEFAULTS).forEach((key) => {
@@ -198,6 +220,7 @@
   function bindActionButtons() {
     // Single binding pass keeps event registration centralized and avoids duplicate listeners.
     document.getElementById("save").addEventListener("click", saveSettings);
+    document.getElementById("openAbb").addEventListener("click", openAudioBookBay);
     document.getElementById("resetAll").addEventListener("click", performGlobalReset);
     document.getElementById("clearCache").addEventListener("click", clearMagnetCache);
     document.getElementById("printCache").addEventListener("click", debugExportCache);
@@ -208,6 +231,27 @@
 
     document.querySelectorAll(".section-reset").forEach((button) => {
       button.addEventListener("click", () => performSectionReset(button.dataset.section));
+    });
+  }
+
+  function bindLiveCacheCount() {
+    const storageArea = browserApi.namespace.storage && browserApi.namespace.storage.onChanged;
+    if (!storageArea || typeof storageArea.addListener !== "function") {
+      return;
+    }
+
+    // Listen across extension contexts so options reflects cache changes without reload.
+    storageArea.addListener((changes, areaName) => {
+      if (areaName !== "local") {
+        return;
+      }
+
+      const cacheChange = changes[constants.STORAGE_KEYS.magnetCache];
+      if (!cacheChange) {
+        return;
+      }
+
+      updateCacheCount(cacheChange.newValue || {});
     });
   }
 
@@ -223,6 +267,7 @@
     initialized = true;
     bindRangeAndInputSync();
     bindActionButtons();
+    bindLiveCacheCount();
     await initializeOptions();
   }
 

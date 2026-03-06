@@ -169,8 +169,21 @@
       return true;
     }
 
-    ui.updateStatus("Loading...", true);
-    const result = await fetchQueue.fetchMagnetMetadata(url, { delayMs });
+    const formatDelayLabel = (remainingMs) => {
+      // Round up so users see a stable whole-second countdown (e.g., 5s -> 4s -> 3s).
+      const seconds = Math.max(1, Math.ceil(remainingMs / 1000));
+      return `${seconds}s delay`;
+    };
+
+    const result = await fetchQueue.fetchMagnetMetadata(url, {
+      delayMs,
+      onDelayUpdate: (remainingMs) => {
+        ui.updateStatus(formatDelayLabel(remainingMs), true);
+      },
+      onNetworkStart: () => {
+        ui.updateStatus("Loading...", true);
+      }
+    });
 
     if (result.ok) {
       ui.activate(result.metadata);
@@ -221,6 +234,7 @@
 
     const settings = await cache.loadSettingsWithDefaults();
     const mode = constants.normalizePrefetchMode(settings.prefetchMode);
+    const fetchDelayMs = constants.normalizeFetchDelay(settings.fetchDelay);
 
     // "Never" disables list-page controls entirely while leaving post-page behavior intact.
     if (mode === constants.PREFETCH_MODES.NEVER) {
@@ -236,10 +250,13 @@
       const url = link.href;
       if (mode === constants.PREFETCH_MODES.HOVER) {
         // Hover gives low-friction loading while still requiring user intent.
+        // Base CSS disables pointer events until activation, so re-enable here
+        // to allow the initial hover event that triggers the fetch.
+        ui.btnGroup.style.pointerEvents = "auto";
         ui.btnGroup.style.cursor = "wait";
         // `once: true` prevents repeated fetches for the same row after activation.
         ui.btnGroup.addEventListener("mouseenter", () => {
-          void fetchAndActivate(url, ui);
+          void fetchAndActivate(url, ui, fetchDelayMs);
         }, { once: true });
       } else if (mode === constants.PREFETCH_MODES.CLICK) {
         // Click defers all network cost until the user explicitly chooses a row.
@@ -248,7 +265,7 @@
         // Click mode minimizes network usage by fetching only when the user commits to action.
         ui.btnGroup.addEventListener("click", (event) => {
           event.stopPropagation();
-          void fetchAndActivate(url, ui);
+          void fetchAndActivate(url, ui, fetchDelayMs);
         }, { once: true });
       }
     });
