@@ -3,6 +3,7 @@
  */
 
 :root {
+  /* Centralize theme tokens so post/list UIs stay visually consistent. */
   --abbma-bg: #f0f0f0;
   --abbma-teal: #217e78;
   --abbma-hover-bg: #e0e0e0;
@@ -11,6 +12,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
+  /* Respect OS-level dark-mode preference without relying on site classes. */
   :root {
     --abbma-bg: #2a2a2a;
     --abbma-teal: #4db6ac;
@@ -35,6 +37,7 @@ body.dark-mode, body.night-mode, body[data-theme='dark'] {
 }
 
 .abbma-button-group {
+  /* Start disabled/low-opacity until metadata is ready, preventing dead clicks. */
   background-color: var(--abbma-bg);
   border-radius: 20px;
   display: inline-flex;
@@ -54,6 +57,7 @@ body.dark-mode, body.night-mode, body[data-theme='dark'] {
 }
 
 .abbma-status-text {
+  /* Hidden by default and revealed by JS for transient action feedback. */
   margin-left: 10px;
   font-size: 13px;
   font-family: sans-serif;
@@ -74,6 +78,7 @@ body.dark-mode, body.night-mode, body[data-theme='dark'] {
 }
 
 .abbma-btn {
+  /* Transparent button shell lets theme tokens drive hover/active affordances. */
   background: transparent;
   border: none;
   padding: 4px 6px;
@@ -92,6 +97,7 @@ body.dark-mode, body.night-mode, body[data-theme='dark'] {
 }
 
 .abbma-btn svg {
+  /* Icons inherit semantic accent color from theme variables. */
   width: 14px;
   height: 14px;
   stroke: var(--abbma-teal);

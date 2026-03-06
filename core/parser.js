@@ -5,11 +5,13 @@
   const constants = ABBMA.core.constants;
   const magnet = ABBMA.core.magnet;
 
+  // Parser requires constants for selectors/labels and magnet for metadata normalization.
   if (!constants || !magnet) {
     throw new Error("ABBMA: core/constants.js and core/magnet.js must be loaded before core/parser.js");
   }
 
   function queryFirstBySelectors(doc, selectors) {
+    // Ordered fallback querying protects against markup drift across ABB mirrors.
     for (const selector of selectors) {
       const node = doc.querySelector(selector);
       if (node) {
@@ -20,6 +22,7 @@
   }
 
   function queryAllBySelectors(doc, selectors) {
+    // Deduplicate nodes because selector fallbacks may overlap on some templates.
     const seen = new Set();
     const nodes = [];
     selectors.forEach((selector) => {
@@ -34,6 +37,8 @@
   }
 
   function normalizeLabel(labelText) {
+    // Normalize punctuation and casing so parser labels can match site variants
+    // without maintaining large duplicate label sets.
     return String(labelText || "")
       .trim()
       .replace(/:+$/g, "")
@@ -42,6 +47,7 @@
   }
 
   function extractTitle(doc) {
+    // Some layouts wrap title text in child nodes; prefer first child text when present.
     const titleNode = queryFirstBySelectors(doc, constants.SELECTORS.titleCandidates);
     if (!titleNode) {
       return constants.TITLE_FALLBACK;
@@ -55,6 +61,7 @@
   }
 
   function extractTorrentMetadata(doc) {
+    // Parse table rows so metadata extraction remains resilient to field order changes.
     const rows = queryAllBySelectors(doc, constants.SELECTORS.postRows);
     let infoHash = null;
     const trackers = [];
@@ -78,10 +85,12 @@
       }
     });
 
+    // Hash is mandatory to build a valid magnet URI; fail cleanly when unavailable.
     if (!infoHash) {
       return null;
     }
 
+    // Return normalized metadata so callers can construct magnet links directly.
     return magnet.normalizeMetadata({
       hash: infoHash,
       trackers,
@@ -89,6 +98,7 @@
     });
   }
 
+  // Export only the high-level parse API; keep traversal helpers internal.
   ABBMA.core.parser = {
     extractTorrentMetadata
   };

@@ -9,10 +9,13 @@
   const fetchQueue = ABBMA.core && ABBMA.core.fetchQueue;
   const browserApi = ABBMA.platform && ABBMA.platform.browserApi;
 
+  // Injector stitches together parsing, caching, magnet building, and UI actions.
+  // Require all modules up-front so page handling is deterministic.
   if (!constants || !magnet || !parser || !cache || !fetchQueue || !browserApi) {
     throw new Error("ABBMA: Required modules are unavailable before loading ui/injector.js");
   }
 
+  // Inline SVG keeps the content script self-contained and avoids external icon assets.
   const SVG_ICONS = {
     download: "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71\"/><path d=\"M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71\"/></svg>",
     copy: "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2\"/><rect x=\"8\" y=\"2\" width=\"8\" height=\"4\" rx=\"1\" ry=\"1\"/></svg>",
@@ -20,6 +23,7 @@
   };
 
   function queryFirst(selectors) {
+    // Ordered selector fallback handles template differences between ABB mirrors/pages.
     for (const selector of selectors) {
       const node = document.querySelector(selector);
       if (node) {
@@ -30,6 +34,7 @@
   }
 
   function queryAll(selectors) {
+    // Deduping prevents duplicate controls when selectors overlap.
     const seen = new Set();
     const nodes = [];
     selectors.forEach((selector) => {
@@ -44,6 +49,7 @@
   }
 
   function createMagnetUI() {
+    // Build one reusable control bundle for either list rows or post pages.
     const wrapper = document.createElement("div");
     wrapper.className = "abbma-wrapper";
 
@@ -56,6 +62,7 @@
 
     let feedbackTimeout = null;
     const updateStatus = (message, isPermanent = false) => {
+      // Reset previous timers so status transitions stay coherent during rapid interactions.
       if (feedbackTimeout) {
         clearTimeout(feedbackTimeout);
       }
@@ -65,6 +72,8 @@
       statusText.style.opacity = "1";
 
       if (!isPermanent) {
+        // Delayed fade-out keeps feedback visible long enough to read,
+        // then clears text to preserve compact layout.
         feedbackTimeout = setTimeout(() => {
           statusText.classList.add("abbma-fade-out");
           statusText.style.opacity = "0";
@@ -82,6 +91,7 @@
     const createIconButton = (svgString, tooltip, positionClass) => {
       const button = document.createElement("button");
 
+      // Parse from trusted static SVG strings to avoid innerHTML usage in injected pages.
       const domParser = new global.DOMParser();
       const doc = domParser.parseFromString(svgString, "image/svg+xml");
       const svgElement = doc.documentElement;
@@ -109,6 +119,8 @@
       btnGroup,
       updateStatus,
       activate: (metadata) => {
+        // Activation is deferred until metadata exists, keeping inactive controls non-clickable
+        // and preventing broken actions before fetch/parse completes.
         const magnetLink = magnet.buildMagnetLink(metadata);
         btnGroup.style.opacity = "";
         btnGroup.style.pointerEvents = "";
@@ -134,6 +146,7 @@
           event.stopPropagation();
           try {
             const current = await browserApi.clipboard.readText().catch(() => "");
+            // Avoid duplicate clipboard entries during bulk collection workflows.
             if (current.includes(magnetLink)) {
               updateStatus("Duplicate!");
               return;
@@ -170,6 +183,8 @@
   }
 
   async function processPostPage() {
+    // Post pages can parse metadata from the current DOM immediately,
+    // so no network round-trip is required for initial activation.
     const postTitle = queryFirst(constants.SELECTORS.postTitle);
     if (!postTitle || !postTitle.parentNode) {
       return;
@@ -187,6 +202,7 @@
 
       const nativeMagnetLink = queryFirst(constants.SELECTORS.nativeMagnetLink);
       if (nativeMagnetLink) {
+        // Replace ABB's native link with the normalized full magnet URI for consistency.
         nativeMagnetLink.href = magnet.buildMagnetLink(metadata);
       }
       return;
@@ -196,6 +212,8 @@
   }
 
   async function processListPage() {
+    // List pages only have links, not full metadata. Inject controls next to each entry
+    // and fetch metadata based on explicit interaction mode.
     const bookLinks = queryAll(constants.SELECTORS.listLinks);
     if (bookLinks.length === 0) {
       return;
@@ -204,6 +222,7 @@
     const settings = await cache.loadSettingsWithDefaults();
     const mode = constants.normalizePrefetchMode(settings.prefetchMode);
 
+    // "Never" disables list-page controls entirely while leaving post-page behavior intact.
     if (mode === constants.PREFETCH_MODES.NEVER) {
       return;
     }
@@ -216,12 +235,14 @@
 
       const url = link.href;
       if (mode === constants.PREFETCH_MODES.HOVER) {
+        // Hover gives low-friction loading while still requiring user intent.
         ui.btnGroup.style.cursor = "wait";
         // `once: true` prevents repeated fetches for the same row after activation.
         ui.btnGroup.addEventListener("mouseenter", () => {
           void fetchAndActivate(url, ui);
         }, { once: true });
       } else if (mode === constants.PREFETCH_MODES.CLICK) {
+        // Click defers all network cost until the user explicitly chooses a row.
         ui.btnGroup.style.pointerEvents = "auto";
         ui.btnGroup.style.cursor = "pointer";
         // Click mode minimizes network usage by fetching only when the user commits to action.
@@ -234,6 +255,8 @@
   }
 
   function isSinglePostPage() {
+    // Feature split: single post pages support immediate parse+activate;
+    // all other matched pages follow list-page flow.
     return constants.SELECTORS.isSinglePost.some((selector) => document.querySelector(selector) !== null);
   }
 
@@ -246,6 +269,7 @@
     await processListPage();
   }
 
+  // Export one entrypoint so bootstrap can initialize without knowing internals.
   ABBMA.ui.injector = {
     init
   };

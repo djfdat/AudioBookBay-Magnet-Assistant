@@ -6,6 +6,7 @@
   <title>ABBMA List Demo</title>
   <link rel="stylesheet" href="../../abbma.css">
   <style>
+    /* Fixture layout mirrors ABB list aesthetics so screenshots look realistic. */
     body {
       margin: 0;
       font-family: Georgia, "Times New Roman", serif;
@@ -48,6 +49,7 @@
   <main class="page">
     <h1>Latest Audiobooks</h1>
 
+    <!-- Ready state: controls are active and metadata is already available. -->
     <article class="item">
       <div class="abbma-wrapper abbma-list-wrapper">
         <div class="abbma-button-group abbma-active">
@@ -67,6 +69,7 @@
       <div class="meta">Business / Self-Improvement</div>
     </article>
 
+    <!-- Loading state: controls are present but intentionally disabled/pending. -->
     <article class="item">
       <div class="abbma-wrapper abbma-list-wrapper">
         <div class="abbma-button-group" style="opacity:0.5;pointer-events:none;cursor:wait;">
@@ -86,6 +89,7 @@
       <div class="meta">Psychology / Productivity</div>
     </article>
 
+    <!-- Post-action state: status feedback reflects successful append workflow. -->
     <article class="item">
       <div class="abbma-wrapper abbma-list-wrapper">
         <div class="abbma-button-group abbma-active">

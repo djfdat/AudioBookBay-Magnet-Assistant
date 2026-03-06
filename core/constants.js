@@ -2,6 +2,8 @@
   const ABBMA = global.ABBMA = global.ABBMA || {};
   ABBMA.core = ABBMA.core || {};
 
+  // Canonical domain list drives both manifest patterns and runtime selector scope.
+  // Keeping it centralized avoids drift when ABB mirror domains change.
   const ABB_DOMAINS = [
     "audiobookbay.lu",
     "audiobookbay.li",
@@ -11,6 +13,7 @@
     "audiobookbay.se"
   ];
 
+  // Derived match patterns reduce manual duplication and keep manifest/runtime aligned.
   const ABB_MATCH_PATTERNS = ABB_DOMAINS.map((domain) => `*://*.${domain}/*`);
 
   const MAGNET_URI_SCHEME = "magnet:?xt=urn:btih:";
@@ -41,6 +44,7 @@
     prefetchMode: PREFETCH_MODES.HOVER
   };
 
+  // Storage keys are centralized to prevent typo-driven split-brain state across modules.
   const STORAGE_KEYS = {
     magnetCache: "magnetCache",
     cacheLimit: "cacheLimit",
@@ -49,6 +53,8 @@
     prefetchMode: "prefetchMode"
   };
 
+  // Selectors are ordered by confidence so query helpers can gracefully degrade
+  // across ABB theme and markup variants.
   const SELECTORS = {
     isSinglePost: [".postContent > table"],
     postTitle: [".postTitle"],
@@ -58,11 +64,15 @@
     nativeMagnetLink: ["#magnetLink"]
   };
 
+  // Labels are normalized by parser before comparison; these arrays represent
+  // accepted semantic aliases seen across domain/theme variants.
   const PARSER_FALLBACKS = {
     infoHashLabels: ["info hash", "hash"],
     trackerLabels: ["tracker", "announce url", "announce"]
   };
 
+  // Export all shared constants/functions through one namespace object so each
+  // module can depend on a single stable contract.
   ABBMA.core.constants = {
     ABB_DOMAINS,
     ABB_MATCH_PATTERNS,

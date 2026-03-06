@@ -3,10 +3,12 @@
 <head>
   <title>AudioBookBay Magnet Assistant Settings</title>
   <style>
+    /* Compact centered layout keeps settings readable in extension tab context. */
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 20px; color: #333; max-width: 600px; margin: 0 auto; background-color: #fcfcfc; }
     h1 { font-size: 1.5em; color: #217e78; border-bottom: 2px solid #217e78; padding-bottom: 10px; }
     h2 { font-size: 1.1em; color: #444; margin-top: 0; }
 
+    /* Section cards visually separate prefetch and cache controls. */
     .section { background: white; padding: 15px; border: 1px solid #e0e0e0; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
     .setting-row { display: flex; align-items: center; margin-bottom: 15px; }
     .setting-row:last-child { margin-bottom: 0; }
@@ -22,13 +24,16 @@
     input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 16px; height: 16px; background: #217e78; cursor: pointer; border-radius: 50%; border: 2px solid white; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
     input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; background: #217e78; cursor: pointer; border-radius: 50%; border: 2px solid white; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
 
-    .button-group { display: flex; gap: 8px; margin-top: 20px; align-items: center; }    button { padding: 8px 14px; background: #217e78; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: 500; }
+    /* Shared button row used for cache actions and footer actions. */
+    .button-group { display: flex; gap: 8px; margin-top: 20px; align-items: center; }
+    button { padding: 8px 14px; background: #217e78; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: 500; }
     button:hover { background: #1a635e; }
     button.secondary { background: #666; }
     button.secondary:hover { background: #555; }
     button.danger { background: #d9534f; }
     button.danger:hover { background: #c9302c; }
 
+    /* Reset buttons stay subtle and only become visually active when enabled via JS. */
     .reset-btn {
       background: none;
       color: #217e78;
@@ -58,6 +63,7 @@
 <body>
   <h1>AudioBookBay Magnet Assistant Settings</h1>
 
+  <!-- Prefetch behavior controls for list pages only. -->
   <div class="section" id="prefetch-section">
     <div class="section-header">
       <h2>Pre-fetching Settings</h2>
@@ -83,6 +89,7 @@
       <button class="reset-btn field-reset" data-field="prefetchMode">Reset</button>
     </div>
 
+    <!-- Delay is retained for compatibility and future queue-based modes. -->
     <div class="setting-row">
       <div class="setting-info">
         <label for="fetchDelay">Fetch Delay (ms)</label>
@@ -95,6 +102,7 @@
       <button class="reset-btn field-reset" data-field="fetchDelay">Reset</button>
     </div>
 
+    <!-- Concurrency control remains available for queue-based fetch strategies. -->
     <div class="setting-row">
       <div class="setting-info">
         <label for="concurrencyLimit">Concurrent Workers</label>
@@ -108,6 +116,7 @@
     </div>
     </div>
 
+    <!-- Cache controls are separated to avoid accidental performance-setting resets. -->
     <div class="section" id="cache-section">
     <div class="section-header">
       <h2>Cache Management</h2>
@@ -141,6 +150,7 @@
     <div id="saveStatus" class="status"></div>
   </div>
 
+  <!-- Script order matches dependency chain: platform -> core -> UI controller -> bootstrap. -->
   <script src="platform/browser-api.js"></script>
   <script src="core/constants.js"></script>
   <script src="core/cache.js"></script>

@@ -5,6 +5,7 @@
   const constants = ABBMA.core.constants;
   const browserApi = ABBMA.platform && ABBMA.platform.browserApi;
 
+  // Cache layer depends on constants for keys/defaults and browser adapter for storage access.
   if (!constants || !browserApi) {
     throw new Error("ABBMA: core/constants.js and platform/browser-api.js must be loaded before core/cache.js");
   }
@@ -16,11 +17,13 @@
   }
 
   async function getCache() {
+    // Always return an object so callers can rely on object operations without null checks.
     const store = await browserApi.storage.get(constants.STORAGE_KEYS.magnetCache);
     return store[constants.STORAGE_KEYS.magnetCache] || {};
   }
 
   async function getCachedData(url) {
+    // Read-through helper keeps URL normalization logic centralized.
     const key = normalizeUrlKey(url);
     const cache = await getCache();
     return cache[key] || null;
@@ -33,6 +36,8 @@
       constants.STORAGE_KEYS.cacheLimit
     ]);
 
+    // Fall back to defaults when user-configured limits are absent/invalid
+    // so cache behavior is always bounded.
     const cache = store[constants.STORAGE_KEYS.magnetCache] || {};
     const configuredLimit = Number(store[constants.STORAGE_KEYS.cacheLimit]);
     const fallbackLimit = constants.SETTINGS_DEFAULTS.cacheLimit;
@@ -83,6 +88,7 @@
   }
 
   async function clearCache() {
+    // Preserve settings while resetting cache payload only.
     await browserApi.storage.set({
       [constants.STORAGE_KEYS.magnetCache]: {}
     });
@@ -93,6 +99,7 @@
     return Object.keys(cache).length;
   }
 
+  // Export cache primitives so UI/injector can share one storage contract.
   ABBMA.core.cache = {
     normalizeUrlKey,
     getCache,

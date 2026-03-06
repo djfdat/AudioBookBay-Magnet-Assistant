@@ -6,6 +6,8 @@
   const cache = ABBMA.core && ABBMA.core.cache;
   const browserApi = ABBMA.platform && ABBMA.platform.browserApi;
 
+  // Options UI depends on shared constants and cache helpers to avoid duplicating
+  // storage keys/default logic in the page layer.
   if (!constants || !cache || !browserApi) {
     throw new Error("ABBMA: core/constants.js, core/cache.js, and platform/browser-api.js are required for ui/options.js");
   }
@@ -41,6 +43,7 @@
       return;
     }
 
+    // String coercion keeps comparison stable across number/select input sources.
     const isModified = String(currentValue) !== String(DEFAULTS[key]);
     fieldResetButton.disabled = !isModified;
 
@@ -63,6 +66,7 @@
   }
 
   async function initializeOptions() {
+    // Read all settings in one storage call to reduce async churn and keep UI init atomic.
     const settingKeys = Object.keys(DEFAULTS);
     const store = await browserApi.storage.get([...settingKeys, constants.STORAGE_KEYS.magnetCache]);
     let migratedPrefetchMode = null;
@@ -90,10 +94,13 @@
 
     const cacheData = store[constants.STORAGE_KEYS.magnetCache] || {};
     const count = Object.keys(cacheData).length;
+    // Show cache size here so users can make informed cleanup/capacity decisions.
     document.getElementById("cacheCount").textContent = `Total cached magnet links: ${count}`;
   }
 
   async function saveSettings() {
+    // Serialize all controls from defaults so new settings automatically participate
+    // without changing save wiring.
     const settingsToSave = {};
     Object.keys(DEFAULTS).forEach((key) => {
       const input = document.getElementById(key);
@@ -121,6 +128,7 @@
   }
 
   function performFieldReset(fieldKey) {
+    // Field reset is UI-only until Save, preserving explicit user commit semantics.
     syncInputValues(fieldKey, DEFAULTS[fieldKey]);
   }
 
@@ -134,12 +142,14 @@
   }
 
   function performGlobalReset() {
+    // Confirmation prevents accidental full reset while keeping cache intact.
     if (global.confirm("Reset all settings to defaults? (Your cached magnet links will be preserved)")) {
       Object.keys(DEFAULTS).forEach((fieldKey) => performFieldReset(fieldKey));
     }
   }
 
   async function clearMagnetCache() {
+    // Cache clearing is destructive, so require explicit confirmation before write.
     if (global.confirm("Are you sure you want to clear the magnet link cache? This cannot be undone.")) {
       await cache.clearCache();
       await initializeOptions();
@@ -147,6 +157,8 @@
   }
 
   async function debugExportCache() {
+    // Debug export intentionally writes to console rather than file to keep
+    // the extension permission footprint minimal.
     const cacheData = await cache.getCache();
     console.group("ABBMA: Magnet Link Cache Export");
     console.log("Timestamp:", new Date().toISOString());
@@ -156,6 +168,7 @@
   }
 
   function bindRangeAndInputSync() {
+    // Two-way sync keeps sliders and number fields visually and semantically aligned.
     Object.keys(DEFAULTS).forEach((key) => {
       const input = document.getElementById(key);
       const rangeInput = document.getElementById(`${key}Range`);
@@ -183,6 +196,7 @@
   }
 
   function bindActionButtons() {
+    // Single binding pass keeps event registration centralized and avoids duplicate listeners.
     document.getElementById("save").addEventListener("click", saveSettings);
     document.getElementById("resetAll").addEventListener("click", performGlobalReset);
     document.getElementById("clearCache").addEventListener("click", clearMagnetCache);
@@ -200,6 +214,7 @@
   let initialized = false;
 
   async function init() {
+    // Protect against duplicate listener registration if init is called more than once.
     if (initialized) {
       await initializeOptions();
       return;
@@ -211,6 +226,7 @@
     await initializeOptions();
   }
 
+  // Public options entrypoint consumed by options.js bootstrap.
   ABBMA.ui.options = {
     init
   };
