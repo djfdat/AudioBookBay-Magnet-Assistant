@@ -79,9 +79,14 @@
       }
     };
 
-    const createIconButton = (svg, tooltip, positionClass) => {
+    const createIconButton = (svgString, tooltip, positionClass) => {
       const button = document.createElement("button");
-      button.innerHTML = svg;
+
+      const domParser = new global.DOMParser();
+      const doc = domParser.parseFromString(svgString, "image/svg+xml");
+      const svgElement = doc.documentElement;
+
+      button.appendChild(svgElement);
       button.title = tooltip;
       button.className = "abbma-btn";
       if (positionClass) {
