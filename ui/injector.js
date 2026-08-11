@@ -290,4 +290,4 @@
   ABBMA.ui.injector = {
     init
   };
-})(window);
+})(globalThis);

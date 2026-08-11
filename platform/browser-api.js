@@ -4,9 +4,12 @@
 
   // Firefox exposes `browser`, Chromium exposes `chrome`.
   // Resolve once so feature modules stay runtime-agnostic.
-  const browserNamespace = typeof global.browser !== "undefined"
-    ? global.browser
-    : (typeof global.chrome !== "undefined" ? global.chrome : null);
+  // Resolved as bare identifiers on purpose: in a Firefox content script these live on the
+  // sandbox global, not on the page `window` the script sees, so a `window.browser` style
+  // property lookup would come back undefined.
+  const browserNamespace = typeof browser !== "undefined"
+    ? browser
+    : (typeof chrome !== "undefined" ? chrome : null);
 
   // Fail fast during startup if extension APIs are unavailable.
   if (!browserNamespace || !browserNamespace.storage || !browserNamespace.storage.local) {
@@ -42,4 +45,4 @@
       readText: clipboardReadText
     }
   };
-})(window);
+})(globalThis);

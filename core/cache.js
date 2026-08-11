@@ -127,4 +127,4 @@
     clearCache,
     getCacheCount
   };
-})(window);
+})(globalThis);

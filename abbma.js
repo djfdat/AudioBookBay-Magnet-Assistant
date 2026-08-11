@@ -16,4 +16,4 @@
   injector.init().catch((err) => {
     console.error("ABBMA: Critical Initialization Failure", err);
   });
-})(window);
+})(globalThis);

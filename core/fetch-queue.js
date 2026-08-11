@@ -163,4 +163,4 @@
     fetchMagnetMetadata,
     runWorkerPool
   };
-})(window);
+})(globalThis);

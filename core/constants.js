@@ -110,4 +110,4 @@
     SELECTORS,
     PARSER_FALLBACKS
   };
-})(window);
+})(globalThis);

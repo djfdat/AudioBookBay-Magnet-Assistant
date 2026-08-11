@@ -275,4 +275,4 @@
   ABBMA.ui.options = {
     init
   };
-})(window);
+})(globalThis);

@@ -40,13 +40,13 @@ function createHarness({ fetchLatencyMs = 0 } = {}) {
     }
   }
 
+  // Modules attach to the script's global scope (`globalThis`), which in a Firefox
+  // content script is the sandbox global rather than the page `window`.
   const context = vm.createContext({
-    window: {
-      ABBMA: {
-        core: {
-          cache,
-          parser
-        }
+    ABBMA: {
+      core: {
+        cache,
+        parser
       }
     },
     DOMParser: FakeDOMParser,
@@ -73,7 +73,7 @@ function createHarness({ fetchLatencyMs = 0 } = {}) {
   vm.runInContext(FETCH_QUEUE_SOURCE, context, { filename: "core/fetch-queue.js" });
 
   return {
-    fetchQueue: context.window.ABBMA.core.fetchQueue,
+    fetchQueue: context.ABBMA.core.fetchQueue,
     fetchStarts,
     getFetchCount: () => fetchCount
   };

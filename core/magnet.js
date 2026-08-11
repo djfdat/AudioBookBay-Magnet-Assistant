@@ -35,4 +35,4 @@
     normalizeMetadata,
     buildMagnetLink
   };
-})(window);
+})(globalThis);
