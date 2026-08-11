@@ -102,4 +102,4 @@
   ABBMA.core.parser = {
     extractTorrentMetadata
   };
-})(window);
+})(globalThis);

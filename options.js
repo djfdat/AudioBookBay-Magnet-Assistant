@@ -25,4 +25,4 @@
   } else {
     run();
   }
-})(window);
+})(globalThis);
